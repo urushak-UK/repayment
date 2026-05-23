@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Repayment Comparison</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Hide number input arrows */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        .card-enter { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Custom scrollbar for dropdown */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Loan Repayment Comparison</h1>
+                <p class="text-slate-500 mt-2">Compare up to 6 lenders, adjust individual rates, and see how calculation methods affect your repayments.</p>
+            </div>
+            
+            <!-- Real-Time Sync Status & Button -->
+            <div class="flex flex-col items-center md:items-end gap-2">
+                <button id="syncDataBtn" class="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg transition-colors text-sm">
+                    <svg id="syncIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Sync Live Data
+                </button>
+                <span id="syncStatus" class="text-xs text-slate-500">Connecting to Google Sheets...</span>
+            </div>
+        </header>
+
+        <!-- Global Loan Details -->
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 mb-8">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Global Loan Details</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Loan Amount -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Loan Amount</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-slate-400 font-medium">$</span>
+                        </div>
+                        <input type="number" id="globalAmount" value="500000" class="block w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    </div>
+                </div>
+
+                <!-- Loan Term -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Loan Term</label>
+                    <div class="relative">
+                        <input type="number" id="globalTerm" value="30" class="block w-full pl-3 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <span class="text-slate-400 text-sm">Years</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Repayment Type -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Repayment Type</label>
+                    <select id="globalType" class="block w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                        <option value="pi">Principal & Interest</option>
+                        <option value="io">Interest Only</option>
+                    </select>
+                </div>
+
+                <!-- Repayment Frequency -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Repayment Frequency</label>
+                    <select id="globalFreq" class="block w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                        <option value="monthly">Monthly</option>
+                        <option value="fortnightly">Fortnightly</option>
+                        <option value="weekly">Weekly</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lender Selection & Comparison Grid -->
+        <div>
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <h2 class="text-xl font-semibold text-slate-800">Lender Comparison <span id="lenderCount" class="text-sm font-normal text-slate-500 ml-2">(0 / 6 Selected)</span></h2>
+                
+                <!-- Multi-Select Lender Controls -->
+                <div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto relative">
+                    
+                    <!-- Custom Multi-select Dropdown -->
+                    <div class="relative w-full sm:w-72" id="dropdownContainer">
+                        <div id="dropdownToggle" class="block w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-700 cursor-pointer flex justify-between items-center hover:border-blue-400 transition-colors">
+                            <span id="dropdownSelectedText">Select multiple lenders...</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                        
+                        <!-- Dropdown Menu (Hidden by default) -->
+                        <div id="dropdownMenu" class="hidden absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                            <div class="p-2 border-b bg-slate-50 flex justify-between items-center">
+                                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider pl-2">Available Lenders</span>
+                                <button id="closeDropdownBtn" class="text-slate-400 hover:text-slate-700 p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <div id="checkboxList" class="max-h-60 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                <!-- Checkboxes populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="addLenderBtn" class="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        Add Selected
+                    </button>
+                </div>
+            </div>
+
+            <!-- The Grid -->
+            <div id="comparisonGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Cards will be injected here via JavaScript -->
+            </div>
+            
+            <!-- Empty State -->
+            <div id="emptyState" class="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200 hidden mt-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 mx-auto text-slate-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <h3 class="text-lg font-semibold text-slate-800">No lenders selected to compare</h3>
+                <p class="text-slate-500 mt-1 max-w-sm mx-auto">Open the dropdown above, select multiple lenders, and click "Add Selected" to begin your comparison.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- GOOGLE APPS SCRIPT API URL ---
+        const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/a/macros/homeloanexperts.com.au/s/AKfycbym8Fz8zdSPGYjtZ7NWZ_-UyqRJf5O1zUWm2bFLJo51rMp9H9h9MxI3oJlQ_16PKUzwQw/exec"; 
+
+        // Array to hold the dynamic data from Google Sheets
+        let lendersData = [];
+        let isFirstLoad = true;
+
+        // Application State
+        let state = {
+            amount: 500000,
+            term: 30,
+            type: 'pi',
+            freq: 'monthly',
+            selectedLenders: [] // Array of { id, customRate }
+        };
+
+        const MAX_LENDERS = 6;
+
+        // DOM Elements
+        const elGlobalAmount = document.getElementById('globalAmount');
+        const elGlobalTerm = document.getElementById('globalTerm');
+        const elGlobalType = document.getElementById('globalType');
+        const elGlobalFreq = document.getElementById('globalFreq');
+        
+        const elDropdownToggle = document.getElementById('dropdownToggle');
+        const elDropdownMenu = document.getElementById('dropdownMenu');
+        const elCheckboxList = document.getElementById('checkboxList');
+        const elCloseDropdownBtn = document.getElementById('closeDropdownBtn');
+        const elDropdownSelectedText = document.getElementById('dropdownSelectedText');
+        
+        const elAddLenderBtn = document.getElementById('addLenderBtn');
+        const elComparisonGrid = document.getElementById('comparisonGrid');
+        const elEmptyState = document.getElementById('emptyState');
+        const elLenderCount = document.getElementById('lenderCount');
+        
+        const elSyncDataBtn = document.getElementById('syncDataBtn');
+        const elSyncIcon = document.getElementById('syncIcon');
+        const elSyncStatus = document.getElementById('syncStatus');
+
+        const formatCurrency = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        // --- REAL-TIME SYNC LOGIC VIA FETCH --- //
+        async function fetchLiveSheetData(isManual = false) {
+            if (isManual) {
+                elSyncIcon.classList.add('animate-spin');
+                elSyncStatus.textContent = "Syncing...";
+                elSyncStatus.classList.replace('text-slate-500', 'text-blue-500');
+            }
+
+            try {
+                const fetchUrl = APPS_SCRIPT_WEB_APP_URL + "?t=" + new Date().getTime();
+                const response = await fetch(fetchUrl);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const jsonData = await response.json();
+                
+                if (jsonData && jsonData.length > 0) {
+                    processSheetData(jsonData);
+                    updateSyncUI(true);
+                } else {
+                    if (isFirstLoad) loadFallbackData();
+                    updateSyncUI(false, "Sheet is empty");
+                }
+            } catch (error) {
+                console.warn("Failed to fetch data from Apps Script API:", error);
+                if (isFirstLoad) loadFallbackData();
+                updateSyncUI(false, "Offline mode");
+            }
+        }
+
+        function updateSyncUI(success, errMsg = "") {
+            elSyncIcon.classList.remove('animate-spin');
+            if (success) {
+                const now = new Date();
+                elSyncStatus.textContent = "Last synced: " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                elSyncStatus.classList.replace('text-blue-500', 'text-emerald-500');
+                elSyncStatus.classList.replace('text-red-500', 'text-emerald-500');
+            } else {
+                elSyncStatus.textContent = errMsg;
+                elSyncStatus.classList.replace('text-blue-500', 'text-red-500');
+                elSyncStatus.classList.replace('text-emerald-500', 'text-red-500');
+            }
+        }
+
+        function processSheetData(data) {
+            lendersData = [];
+            data.forEach(row => {
+                const lenderName = row['Lender'];
+                const repTypeStr = (row['Repayment type'] || '').toLowerCase().trim();
+                if (!lenderName) return; 
+
+                let calcType = 'standard'; 
+                if (repTypeStr.includes('accelerated')) {
+                    calcType = 'accelerated';
+                } else if (repTypeStr.includes('monthly')) {
+                    calcType = 'monthly_only';
+                }
+
+                lendersData.push({
+                    id: lenderName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                    name: lenderName,
+                    defaultRate: 6.00, 
+                    calcType: calcType
+                });
+            });
+
+            if (isFirstLoad) {
+                isFirstLoad = false;
+                setupApp();
+            } else {
+                renderDropdown();
+                let needsFullRender = false;
+                state.selectedLenders = state.selectedLenders.filter(lState => {
+                    const stillExists = lendersData.some(l => l.id === lState.id);
+                    if (!stillExists) needsFullRender = true;
+                    return stillExists;
+                });
+                
+                if (needsFullRender) {
+                    render();
+                } else {
+                    state.selectedLenders.forEach(lenderState => {
+                        updateSingleCardDOM(lenderState.id);
+                    });
+                }
+            }
+        }
+
+        function init() {
+            fetchLiveSheetData(true);
+            setInterval(() => { fetchLiveSheetData(false); }, 15000);
+            elSyncDataBtn.addEventListener('click', () => { fetchLiveSheetData(true); });
+            document.addEventListener('click', (e) => {
+                if (!document.getElementById('dropdownContainer').contains(e.target)) {
+                    elDropdownMenu.classList.add('hidden');
+                }
+            });
+        }
+
+        function loadFallbackData() {
+            console.log("Loading offline fallback data...");
+            lendersData = [
+                { id: 'adelaide_bank', name: 'Adelaide Bank', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'amp', name: 'AMP', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'anz', name: 'ANZ', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'bank_of_china', name: 'Bank of China', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'bank_of_melbourne', name: 'Bank of Melbourne', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'bankwest', name: 'Bankwest', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'bluestone', name: 'Bluestone', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'brighten_home_loan', name: 'Brighten Home Loan', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'commonwealth_bank', name: 'Commonwealth Bank', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'connective_elevate', name: 'Connective Elevate (Bluestone)', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'connective_select', name: 'Connective Select (Bendigo Bank)', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'firstmac', name: 'Firstmac', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'gateway_bank', name: 'Gateway Bank', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'granite_home_loans', name: 'Granite Home Loans', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'health_professionals_bank', name: 'Health Professionals Bank', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'heritage_bank', name: 'Heritage Bank', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'ing', name: 'ING', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'la_trobe_financial', name: 'La Trobe Financial', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'liberty_financial', name: 'Liberty Financial', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'macquarie_bank', name: 'Macquarie Bank', defaultRate: 6.00, calcType: 'monthly_only' },
+                { id: 'me_bank', name: 'ME Bank', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'mortgage_ezy', name: 'Mortgage Ezy', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'mystate', name: 'MyState', defaultRate: 6.00, calcType: 'monthly_only' },
+                { id: 'nab', name: 'NAB', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'newcastle_permanent', name: 'Newcastle Permanent', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'peoples_choice', name: 'People\'s Choice Credit Union', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'pepper_money', name: 'Pepper Money', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'qudos_bank', name: 'Qudos Bank', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'resimac', name: 'Resimac', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'st_george_bank', name: 'St George Bank', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'suncorp_bank', name: 'Suncorp Bank', defaultRate: 6.00, calcType: 'accelerated' },
+                { id: 'teachers_mutual_bank', name: 'Teachers Mutual Bank', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'unibank', name: 'UniBank', defaultRate: 6.00, calcType: 'standard' },
+                { id: 'westpac', name: 'Westpac', defaultRate: 6.00, calcType: 'accelerated' }
+            ];
+            if(isFirstLoad) {
+                isFirstLoad = false;
+                setupApp();
+            }
+        }
+
+        function setupApp() {
+            render();
+
+            elGlobalAmount.addEventListener('input', (e) => { state.amount = parseFloat(e.target.value) || 0; render(); });
+            elGlobalTerm.addEventListener('input', (e) => { state.term = parseFloat(e.target.value) || 0; render(); });
+            elGlobalType.addEventListener('change', (e) => { state.type = e.target.value; render(); });
+            elGlobalFreq.addEventListener('change', (e) => { state.freq = e.target.value; render(); });
+
+            elDropdownToggle.addEventListener('click', () => { elDropdownMenu.classList.toggle('hidden'); });
+            elCloseDropdownBtn.addEventListener('click', () => { elDropdownMenu.classList.add('hidden'); });
+
+            elAddLenderBtn.addEventListener('click', () => {
+                const checkboxes = elCheckboxList.querySelectorAll('input[type="checkbox"]:checked');
+                checkboxes.forEach(cb => { addLenderToState(cb.value); });
+                elDropdownMenu.classList.add('hidden');
+                elDropdownSelectedText.textContent = "Select multiple lenders...";
+            });
+
+            elComparisonGrid.addEventListener('click', (e) => {
+                const btn = e.target.closest('.remove-lender-btn');
+                if (btn) removeLenderFromState(btn.dataset.id);
+            });
+            elComparisonGrid.addEventListener('input', (e) => {
+                if (e.target.classList.contains('rate-input')) {
+                    updateLenderRate(e.target.dataset.id, parseFloat(e.target.value) || 0);
+                }
+            });
+            
+            elCheckboxList.addEventListener('change', () => {
+                const checkedCount = elCheckboxList.querySelectorAll('input[type="checkbox"]:checked').length;
+                if (checkedCount === 0) {
+                    elDropdownSelectedText.textContent = "Select multiple lenders...";
+                } else {
+                    elDropdownSelectedText.textContent = `${checkedCount} selected`;
+                }
+            });
+        }
+
+        function addLenderToState(id) {
+            if (state.selectedLenders.length >= MAX_LENDERS) return;
+            if (state.selectedLenders.find(l => l.id === id)) return;
+
+            const lenderData = lendersData.find(l => l.id === id);
+            if (lenderData) {
+                state.selectedLenders.push({ id: id, customRate: lenderData.defaultRate });
+                render();
+            }
+        }
+
+        function removeLenderFromState(id) {
+            state.selectedLenders = state.selectedLenders.filter(l => l.id !== id);
+            render();
+        }
+
+        function updateLenderRate(id, newRate) {
+            const lender = state.selectedLenders.find(l => l.id === id);
+            if (lender) {
+                lender.customRate = newRate;
+                updateSingleCardDOM(id); 
+            }
+        }
+
+        function calculateRepayment(lenderId, rate) {
+            const lender = lendersData.find(l => l.id === lenderId);
+            if (!lender) return { error: true, errorMsg: 'Lender data missing.' };
+
+            const rAnnual = rate / 100;
+            const amount = state.amount;
+            const years = state.term;
+            
+            let periodsPerYear = 12;
+            let freqLabel = '/ mo';
+            if (state.freq === 'fortnightly') { periodsPerYear = 26; freqLabel = '/ fn'; }
+            if (state.freq === 'weekly') { periodsPerYear = 52; freqLabel = '/ wk'; }
+
+            if (lender.calcType === 'monthly_only' && state.freq !== 'monthly') {
+                return { error: true, errorMsg: 'Only supports Monthly repayments.', repayment: 0, totalInterest: 0, methodLabel: 'Monthly Only', freqLabel: freqLabel };
+            }
+
+            const rMonthly = rAnnual / 12;
+            const totalMonths = years * 12;
+            const rPeriodic = rAnnual / periodsPerYear;
+            const totalPeriods = years * periodsPerYear;
+
+            const calcStandardPMT = (p, r, n) => {
+                if (r === 0) return p / n;
+                return p * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+            };
+
+            let monthlyFigure = state.type === 'io' ? (amount * rMonthly) : calcStandardPMT(amount, rMonthly, totalMonths);
+            let repayment = 0, totalInterest = 0, methodLabel = '', isAccelerated = false;
+
+            if (state.freq === 'monthly') {
+                repayment = monthlyFigure;
+                totalInterest = state.type === 'io' ? (repayment * totalMonths) : ((repayment * totalMonths) - amount);
+                methodLabel = state.type === 'io' ? 'Standard Monthly (IO)' : 'Standard Monthly (P&I)';
+            } else {
+                if (lender.calcType === 'accelerated') {
+                    isAccelerated = true;
+                    repayment = state.freq === 'fortnightly' ? (monthlyFigure / 2) : (monthlyFigure / 4);
+
+                    let balance = amount;
+                    while (balance > 0) {
+                        let interestForPeriod = balance * rPeriodic;
+                        let principalPaid = repayment - interestForPeriod;
+                        if (balance < principalPaid) principalPaid = balance;
+                        totalInterest += interestForPeriod;
+                        balance -= principalPaid;
+                        if (totalInterest > amount * 3) break; 
+                    }
+                    methodLabel = 'Accelerated (Monthly ÷ ' + (state.freq === 'fortnightly' ? '2' : '4') + ')';
+                } else {
+                    repayment = state.freq === 'fortnightly' ? (monthlyFigure * 12) / 26 : (monthlyFigure * 12) / 52;
+                    totalInterest = state.type === 'io' ? (repayment * totalPeriods) : ((repayment * totalPeriods) - amount);
+                    methodLabel = 'Annualized (Monthly × 12 ÷ ' + (state.freq === 'fortnightly' ? '26' : '52') + ')';
+                }
+            }
+
+            return { error: false, repayment, totalInterest, methodLabel, freqLabel, isAccelerated };
+        }
+
+        function render() {
+            renderDropdown();
+            renderGrid();
+            
+            elLenderCount.textContent = `(${state.selectedLenders.length} / ${MAX_LENDERS} Selected)`;
+            
+            const isMaxReached = state.selectedLenders.length >= MAX_LENDERS;
+            elAddLenderBtn.disabled = isMaxReached;
+            elDropdownToggle.style.opacity = isMaxReached ? '0.5' : '1';
+            elDropdownToggle.style.pointerEvents = isMaxReached ? 'none' : 'auto';
+            if(isMaxReached) elDropdownSelectedText.textContent = "Maximum lenders reached";
+            
+            if (state.selectedLenders.length === 0) {
+                elComparisonGrid.innerHTML = '';
+                elEmptyState.classList.remove('hidden');
+            } else {
+                elEmptyState.classList.add('hidden');
+            }
+        }
+
+        function renderDropdown() {
+            const checkedIds = Array.from(elCheckboxList.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+            elCheckboxList.innerHTML = '';
+            
+            let availableCount = 0;
+            lendersData.forEach(lender => {
+                if (!state.selectedLenders.find(sl => sl.id === lender.id)) {
+                    availableCount++;
+                    const isChecked = checkedIds.includes(lender.id) ? 'checked' : '';
+                    const itemHtml = `
+                        <label class="flex items-center px-3 py-2 hover:bg-blue-50 rounded cursor-pointer transition-colors border border-transparent hover:border-blue-100">
+                            <input type="checkbox" value="${lender.id}" class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" ${isChecked}>
+                            <span class="ml-3 text-sm text-slate-700 font-medium">${lender.name}</span>
+                        </label>
+                    `;
+                    elCheckboxList.insertAdjacentHTML('beforeend', itemHtml);
+                }
+            });
+
+            if(availableCount === 0) {
+                elCheckboxList.innerHTML = '<div class="p-3 text-sm text-slate-400 text-center">No more lenders available</div>';
+            }
+        }
+
+        function renderGrid() {
+            elComparisonGrid.innerHTML = '';
+            state.selectedLenders.forEach(lenderState => {
+                const lenderDef = lendersData.find(l => l.id === lenderState.id);
+                if (!lenderDef) return; 
+                
+                const results = calculateRepayment(lenderState.id, lenderState.customRate);
+                
+                const cardHtml = `
+                    <div class="card-enter bg-white rounded-2xl shadow-sm border ${results.isAccelerated ? 'border-blue-300 shadow-blue-50' : 'border-slate-200'} p-5 relative flex flex-col h-full" id="card-${lenderState.id}">
+                        <button data-id="${lenderState.id}" class="remove-lender-btn absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors p-1" title="Remove">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+
+                        <div class="pr-8 mb-4">
+                            <h3 class="font-bold text-lg text-slate-800 leading-tight">${lenderDef.name}</h3>
+                            ${results.isAccelerated ? '<span class="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">Accelerated Payoff</span>' : ''}
+                        </div>
+
+                        <div class="mb-5">
+                            <label class="text-xs text-slate-500 font-medium uppercase tracking-wider block mb-1">Interest Rate</label>
+                            <div class="flex items-center relative w-32">
+                                <input type="number" step="0.01" data-id="${lenderState.id}" value="${lenderState.customRate.toFixed(2)}" class="rate-input block w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                                <span class="absolute right-3 text-slate-400 pointer-events-none">%</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-auto pt-4 border-t border-slate-100">
+                            <div class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Estimated Repayment</div>
+                            ${results.error ? `
+                                <div class="text-red-500 font-medium py-2">${results.errorMsg}</div>
+                                <div class="mt-4 space-y-3 text-sm">
+                                    <div class="flex justify-between items-start gap-4"><span class="text-slate-500 whitespace-nowrap">Method:</span><span class="text-right font-medium text-slate-700">${results.methodLabel}</span></div>
+                                </div>
+                            ` : `
+                                <div class="flex items-baseline text-blue-600 mb-4">
+                                    <span class="text-3xl font-bold tracking-tight repayment-val">${formatCurrency.format(results.repayment)}</span>
+                                    <span class="ml-1 text-sm font-medium text-slate-500">${results.freqLabel}</span>
+                                </div>
+                                <div class="space-y-3 text-sm">
+                                    <div class="flex justify-between items-start gap-4"><span class="text-slate-500 whitespace-nowrap">Method:</span><span class="text-right font-medium text-slate-700 leading-tight">${results.methodLabel}</span></div>
+                                    <div class="flex justify-between items-start gap-4"><span class="text-slate-500 whitespace-nowrap">Total Interest:</span><span class="text-right font-medium text-slate-700 total-int-val">${formatCurrency.format(results.totalInterest)}</span></div>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+                elComparisonGrid.insertAdjacentHTML('beforeend', cardHtml);
+            });
+        }
+
+        function updateSingleCardDOM(lenderId) {
+            const lenderState = state.selectedLenders.find(l => l.id === lenderId);
+            if(!lenderState) return;
+            const lenderDef = lendersData.find(l => l.id === lenderId);
+            
+            const results = calculateRepayment(lenderId, lenderState.customRate);
+            
+            const card = document.getElementById(`card-${lenderId}`);
+            if(card && !results.error) {
+                const repEl = card.querySelector('.repayment-val');
+                const intEl = card.querySelector('.total-int-val');
+                if(repEl) repEl.textContent = formatCurrency.format(results.repayment);
+                if(intEl) intEl.textContent = formatCurrency.format(results.totalInterest);
+                
+                const methodEl = card.querySelectorAll('.text-right.font-medium.text-slate-700')[0];
+                if(methodEl) methodEl.textContent = results.methodLabel;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
